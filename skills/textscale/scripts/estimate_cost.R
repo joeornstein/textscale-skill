@@ -1,8 +1,8 @@
 # Estimate the annotator cost of the full run before anything is spent.
 # Usage: Rscript estimate_cost.R <run_dir>
 # Uses textscale's own (internal) price table and token approximations, and
-# excludes pairs the full run will take from cache (the latest audit round,
-# when its prompt and model still match config.json).
+# excludes pairs already in the run's cache for the current prompt and model
+# (typically the audit round's).
 
 source(file.path(dirname(normalizePath(sub("--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE)))), "common.R"))
 
@@ -10,9 +10,7 @@ run_dir <- args_run_dir()
 cfg     <- read_config(run_dir)
 comp    <- readRDS(file.path(run_dir, "comparisons.rds"))
 
-hit <- cache_hits(main_cache(run_dir, cfg), comp, cfg, cfg$prompt)
-aud <- latest_audit(run_dir, cfg)
-if (!is.null(aud) && aud$matches) hit <- hit | cache_hits(file.path(aud$dir, "annotations.rds"), comp, cfg, cfg$prompt)
+hit  <- cache_hits(annotation_cache(run_dir), comp, cfg, cfg$prompt)
 todo <- comp[!hit, ]
 sp   <- system_prompt_for(cfg, cfg$prompt)
 batch <- isTRUE(cfg$use_batch)

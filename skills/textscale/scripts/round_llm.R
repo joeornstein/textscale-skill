@@ -2,11 +2,13 @@
 # Usage: Rscript round_llm.R <run_dir> <round> [--rerun]
 #
 # Default: uses the prompt snapshotted when the round was drawn; writes
-#   llm.csv and caches to annotations.rds in the round folder.
+#   llm.csv in the round folder.
 # --rerun: uses the CURRENT prompt in config.json on the same pairs (to see
 #   whether a revised prompt resolves the disagreements); writes
-#   llm_rerun.csv and annotations_rerun.rds. Diagnostic only: those pairs
-#   informed the revision, so agreement on them is optimistic.
+#   llm_rerun.csv. Diagnostic only: those pairs informed the revision, so
+#   agreement on them is optimistic.
+# Answers are cached in the run's shared annotations.rds (one entry per
+# prompt and model), so the full run reuses any it can.
 
 source(file.path(dirname(normalizePath(sub("--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE)))), "common.R"))
 
@@ -26,7 +28,7 @@ pairs  <- read.csv(file.path(rdir, "pairs.csv"))
 comp   <- readRDS(file.path(run_dir, "comparisons.rds"))
 comp   <- comp[match(pairs$pair_id, comp$pair_id), ]
 
-out <- annotate(comp, cfg, prompt, cache = file.path(rdir, paste0("annotations", suffix, ".rds")))
+out <- annotate(comp, cfg, prompt, cache = annotation_cache(run_dir))
 
 n_na <- sum(is.na(out$winner))
 if (n_na == nrow(out)) stop("Every request failed (all winners NA). Run check_keys.R --verify.", call. = FALSE)

@@ -29,7 +29,7 @@ Key: `OPENAI_API_KEY`.
 
 On dimensions, the paper found accuracy on ad tone plateaus around 256 dimensions. 2,048 dimensions gained under 2 points, and the ridge penalty discounted the extra dimensions. 256 is a sound default; going higher is a robustness check, not an upgrade.
 
-Embeddings are cached per model (`embeddings_<model>.rds` in the run directory), so switching models never mixes vectors. textscale's own `get_embeddings()` cache is keyed only by document, which is why the scripts name the cache file after the model.
+Switching models mid-run is safe. Each run keeps one embeddings cache (`embeddings.rds`) and one annotation cache (`annotations.rds`). textscale (0.0.0.9010 and later) stores a separate entry in each for every model and setting, so results from different models never mix. Switching back to an earlier model reuses its results.
 
 ## Installing keys
 

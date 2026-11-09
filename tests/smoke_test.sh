@@ -82,7 +82,7 @@ step "text: revise prompt, diagnostic rerun"
 set_prompt "$T" "Which statement is a clearer case of grandstanding?
 Definition: count direct attacks on a person or institution; ignore procedural length."
 Rscript "$S/round_llm.R" "$T" cal1 --rerun
-Rscript "$S/agreement.R" "$T" cal1 --rerun | grep -q DIAGNOSTIC || fail "rerun report not labeled diagnostic"
+Rscript "$S/agreement.R" "$T" cal1 --rerun > "$W/out.txt"; grep -q DIAGNOSTIC "$W/out.txt" || fail "rerun report not labeled diagnostic"
 
 step "text: full run refuses before an audit"
 if Rscript "$S/run_full.R" "$T" > /dev/null 2>&1; then fail "run_full ran without an audit round"; fi
@@ -91,7 +91,7 @@ step "text: audit round"
 Rscript "$S/new_round.R" "$T" audit 80 audit
 Rscript "$S/round_llm.R" "$T" audit
 judge_round "$T" audit 8762
-Rscript "$S/agreement.R" "$T" audit | grep -q "Held-out audit round" || fail "audit report header"
+Rscript "$S/agreement.R" "$T" audit > "$W/out.txt"; grep -q "Held-out audit round" "$W/out.txt" || fail "audit report header"
 python3 - "$T" <<'EOF' || fail "rounds reused a pair"
 import csv, sys
 seen = set()
@@ -101,9 +101,10 @@ for r in ("cal1", "audit"):
         assert k not in seen; seen.add(k)
 EOF
 
-step "text: cost estimate reuses the audit annotations"
+step "text: cost estimate reuses annotations made under the final prompt"
 Rscript "$S/estimate_cost.R" "$T" | tee "$W/cost.txt"
-grep -q "(80 already cached)" "$W/cost.txt" || fail "audit pairs not counted as cached"
+# 80 audit pairs + the 20 calibration pairs re-judged under the final prompt
+grep -q "(100 already cached)" "$W/cost.txt" || fail "audit and rerun pairs not counted as cached"
 
 step "text: full run"
 Rscript "$S/run_full.R" "$T"
@@ -123,6 +124,18 @@ anchor = [float(r["score"]) for r in rows if r["doc_id"] in ("3", "7")]
 assert abs(sum(anchor) / 2) < 1e-9, anchor
 EOF
 Rscript "$S/recenter.R" "$T" --median --show 3 > /dev/null
+
+step "text: a different annotator model gets nothing from the cache"
+python3 - "$T/config.json" <<'EOF'
+import json, sys
+p = sys.argv[1]; c = json.load(open(p)); c["llm_model"] = "gpt-5.4"; json.dump(c, open(p, "w"), indent=2)
+EOF
+Rscript "$S/estimate_cost.R" "$T" > "$W/out.txt"; grep -q "(0 already cached)" "$W/out.txt" || fail "cache reused across annotator models"
+python3 - "$T/config.json" <<'EOF'
+import json, sys
+p = sys.argv[1]; c = json.load(open(p)); c["llm_model"] = "gpt-5.4-mini"; json.dump(c, open(p, "w"), indent=2)
+EOF
+Rscript "$S/estimate_cost.R" "$T" > "$W/out.txt"; grep -q "Pairs to annotate: 0 " "$W/out.txt" || fail "switching back did not reuse the original model's answers"
 
 step "text: prompt drift after the audit is refused"
 set_prompt "$T" "Which statement is more negative?"

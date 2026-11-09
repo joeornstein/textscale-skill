@@ -28,6 +28,8 @@ Establish, asking only for what isn't already clear:
 
 ## 2. Models and API keys
 
+First confirm the software: `Rscript -e 'packageVersion("textscale")'` must report 0.0.0.9010 or later. The scripts refuse to run on older versions, which mixed cached results across models. If it's missing or older, offer `pak::pak("joeornstein/textscale")`. Also check that `python3` exists.
+
 Ask the user to choose two models, offering the defaults (details and alternatives in `references/models-and-keys.md`):
 
 - **Annotator LLM:** default `gpt-5.4-mini`. textscale calls OpenAI for annotation, so this must be an OpenAI model. Bigger models cost more per pair; the audit is how the user finds out whether the cheaper one is good enough.
@@ -45,8 +47,6 @@ If a key is missing or rejected, help the user install it. The key must never pa
 
 - A `.Renviron` in the working directory makes R ignore `~/.Renviron` entirely. If the check says one is shadowing, either run the scripts from another directory or add the key to that file.
 - A key exported in a shell profile is visible only to shells that read that profile. `.Renviron` is the reliable home for R.
-
-Also confirm `Rscript -e 'packageVersion("textscale")'` works (if not, offer `pak::pak("joeornstein/textscale")`) and that `python3` exists.
 
 ## 3. Set up the run
 

@@ -3,10 +3,16 @@
 
 suppressPackageStartupMessages(library(jsonlite))
 
-# textscale's print/plot methods use `%||%`, which is base R only from 4.4.0.
-# On older R the operator is found here instead (namespace lookup falls
-# through to the global environment), so validation output still prints.
-if (!exists("%||%", baseenv())) `%||%` <- function(x, y) if (is.null(x)) y else x
+# 0.0.0.9010 keys its annotation and embedding caches by model as well as by
+# prompt and document; these scripts rely on that (one shared cache per run).
+MIN_TEXTSCALE <- "0.0.0.9010"
+if (!requireNamespace("textscale", quietly = TRUE)) {
+  stop("The textscale R package is not installed. Install it with pak::pak(\"joeornstein/textscale\").", call. = FALSE)
+}
+if (utils::packageVersion("textscale") < MIN_TEXTSCALE) {
+  stop("textscale ", utils::packageVersion("textscale"), " is installed; this skill needs ", MIN_TEXTSCALE,
+       " or later. Update with pak::pak(\"joeornstein/textscale\").", call. = FALSE)
+}
 
 IMAGE_EXT <- c("jpg", "jpeg", "png", "webp", "gif")
 TEXT_EXT  <- c("txt", "md")
@@ -147,9 +153,13 @@ system_prompt_for <- function(cfg, prompt) {
   paste0(prompt, "\n", sp)
 }
 
-# The one call to annotate_comparisons() used everywhere. textscale's cache
-# hash covers the prompt but NOT the model, so callers must never point two
-# different annotator models at the same cache file.
+# One annotation cache per run, shared by every round and the full run.
+# textscale keeps a separate entry per model and prompt in the same file, so
+# calibration prompts never mix with the final one, and pairs the LLM judged
+# in the audit (final prompt, same model) are reused by the full run.
+annotation_cache <- function(run_dir) file.path(run_dir, "annotations.rds")
+
+# The one call to annotate_comparisons() used everywhere.
 annotate <- function(comparisons, cfg, prompt, cache, batch = FALSE) {
   textscale::annotate_comparisons(
     comparisons,
@@ -164,22 +174,24 @@ annotate <- function(comparisons, cfg, prompt, cache, batch = FALSE) {
   )
 }
 
-# Which rows of `comparisons` a cache file would answer for this prompt,
-# reproducing textscale's own hash check (so estimates match what happens).
+# Which rows of `comparisons` the cache already answers for this prompt and
+# model, reproducing textscale's own cache lookup so cost estimates match
+# what the run will actually do. Uses textscale internals; the smoke test
+# fails if they change.
 cache_hits <- function(cache, comparisons, cfg, prompt) {
-  if (!file.exists(cache)) return(rep(FALSE, nrow(comparisons)))
-  cached <- readRDS(cache)
+  none  <- rep(FALSE, nrow(comparisons))
+  store <- textscale:::.read_cache(cache)
+  if (!textscale:::.is_cache(store)) return(none)
   sp <- system_prompt_for(cfg, prompt)
-  hash <- if (cfg$document_type == "image") textscale:::.prompt_hash("image", cfg$resize, sp) else
-    textscale:::.prompt_hash("A: {{text_a}}\nB: {{text_b}}", sp)
-  if (!identical(attr(cached, "prompt_hash"), hash)) return(rep(FALSE, nrow(comparisons)))
+  hash <- if (cfg$document_type == "image") {
+    textscale:::.prompt_hash("image", cfg$resize, sp, cfg$llm_model)
+  } else {
+    textscale:::.prompt_hash("A: {{text_a}}\nB: {{text_b}}", sp, cfg$llm_model)
+  }
+  cached <- store[[hash]]
+  if (is.null(cached)) return(none)
   key <- function(d) paste(d$text_a, d$text_b, sep = "\t")
-  w <- cached$winner[match(key(comparisons), key(cached))]
-  !is.na(w)
-}
-
-main_cache <- function(run_dir, cfg) {
-  file.path(run_dir, sprintf("annotations_%s.rds", gsub("[^A-Za-z0-9]+", "-", cfg$llm_model)))
+  !is.na(cached$winner[match(key(comparisons), key(cached))])
 }
 
 # The most recent audit round, and whether it still matches config.json.
@@ -204,7 +216,7 @@ embed <- function(docs, cfg, run_dir) {
   if (cfg$document_type == "image") extra$resize <- cfg$resize
   do.call(textscale::get_embeddings, c(list(
     docs$content,
-    cache = file.path(run_dir, sprintf("embeddings_%s.rds", gsub("[^A-Za-z0-9]+", "-", cfg$embedding_model))),
+    cache = file.path(run_dir, "embeddings.rds"),  # textscale keys entries by model and settings
     type  = cfg$document_type,
     model = cfg$embedding_model
   ), extra))

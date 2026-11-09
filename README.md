@@ -29,7 +29,7 @@ Everything ends up in a run folder next to your data:
 
 ## Requirements
 
-- **[R](https://www.r-project.org/) with textscale:** `pak::pak("joeornstein/textscale")`. The skill offers to install it.
+- **[R](https://www.r-project.org/) 4.3 or later, with textscale 0.0.0.9010 or later:** `pak::pak("joeornstein/textscale")`. The skill offers to install it.
 - **Python 3:** for the local judging page. It uses only the standard library.
 - **An OpenAI API key** for the annotator. Image embeddings need an [OpenRouter](https://openrouter.ai) key; text embeddings use OpenAI by default. The skill tells you which keys you need and how to store them in your `.Renviron`. Your keys never go through the chat.
 - **An assistant that can run commands on your machine**, such as Claude Code. Cloud-only chats can't reach your files, R, or the judging page.

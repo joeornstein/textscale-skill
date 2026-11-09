@@ -29,14 +29,13 @@ if (is.null(aud)) {
 } else if (!aud$matches) {
   stop("config.json no longer matches audit round '", aud$round, "' (prompt, annotator model, or ties). ",
        "The audited prompt is the one that should be run; draw a new audit round for the changed settings.", call. = FALSE)
-} else if (!file.exists(main_cache(run_dir, cfg)) && file.exists(file.path(aud$dir, "annotations.rds"))) {
-  # Same prompt and model as the audit, so its LLM answers are reused.
-  file.copy(file.path(aud$dir, "annotations.rds"), main_cache(run_dir, cfg))
 }
 
 embeddings <- embed(docs, cfg, run_dir)
 
-comp <- annotate(comp, cfg, cfg$prompt, cache = main_cache(run_dir, cfg), batch = isTRUE(cfg$use_batch))
+# Same prompt and model as the audit, so the audit's LLM answers come from
+# the shared cache rather than being paid for twice.
+comp <- annotate(comp, cfg, cfg$prompt, cache = annotation_cache(run_dir), batch = isTRUE(cfg$use_batch))
 bad <- is.na(comp$winner) | !comp$winner %in% c("A", "B", "tie")
 if (all(bad)) stop("Every annotation failed; run check_keys.R --verify.", call. = FALSE)
 if (any(bad)) {

@@ -27,7 +27,7 @@ res     <- readRDS(file.path(run_dir, "result.rds"))
 docs    <- res$docs
 emb     <- res$embeddings
 opt     <- function(flag) { i <- match(flag, a); if (is.na(i)) NULL else a[i + 1] }
-show_n  <- as.integer(opt("--show") %||% 10)
+show_n  <- if (is.null(opt("--show"))) 10L else as.integer(opt("--show"))
 
 raw <- textscale::score_documents(res$model_final, emb, ci = TRUE, ci_method = "laplace")
 describe <- function(ids, sc) {
