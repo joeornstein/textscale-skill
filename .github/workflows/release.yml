@@ -1,0 +1,31 @@
+name: release
+
+# Push a tag like v0.1.0 (matching "version" in .claude-plugin/plugin.json)
+# to publish a GitHub release with textscale.skill attached.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tag matches plugin.json
+        run: |
+          v=$(python3 -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+          if [ "v$v" != "$GITHUB_REF_NAME" ]; then
+            echo "plugin.json says version $v but the tag is $GITHUB_REF_NAME"; exit 1
+          fi
+
+      - name: Build textscale.skill
+        run: cd skills && zip -r ../textscale.skill textscale -x '*/__pycache__/*' '*.DS_Store'
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" textscale.skill --title "$GITHUB_REF_NAME" --generate-notes

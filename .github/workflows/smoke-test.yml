@@ -1,0 +1,40 @@
+name: smoke-test
+
+# Runs every skill script end to end with the LLM and embedding APIs mocked.
+# The weekly run installs the current textscale from GitHub, so a package
+# change that would break the skill fails here before users hit it.
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "17 9 * * 1"
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            github::joeornstein/textscale
+            any::httr2
+            any::jsonlite
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate plugin and marketplace manifests
+        run: |
+          python3 -c "import json; [json.load(open(f)) for f in ('.claude-plugin/plugin.json', '.claude-plugin/marketplace.json')]"
+          test -f skills/textscale/SKILL.md
+
+      - name: Smoke test
+        run: bash tests/smoke_test.sh

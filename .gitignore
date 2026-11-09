@@ -1,0 +1,5 @@
+textscale_run_*/
+tests/work/
+*.skill
+.Rhistory
+.DS_Store

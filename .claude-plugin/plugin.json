@@ -1,0 +1,10 @@
+{
+  "name": "textscale",
+  "version": "0.1.0",
+  "description": "Measure a continuous concept across texts or images with the textscale R package: LLM pairwise comparisons, embeddings, and scores with 95% intervals, after the user sharpens the concept and audits the LLM against their own judgments.",
+  "author": { "name": "Joseph T. Ornstein" },
+  "homepage": "https://github.com/joeornstein/textscale-skill",
+  "repository": "https://github.com/joeornstein/textscale-skill",
+  "license": "MIT",
+  "keywords": ["text-as-data", "measurement", "pairwise-comparisons", "bradley-terry", "embeddings", "R"]
+}

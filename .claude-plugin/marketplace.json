@@ -1,0 +1,12 @@
+{
+  "name": "textscale-skill",
+  "description": "The textscale skill for document scaling with pairwise comparisons and embeddings",
+  "owner": { "name": "Joseph T. Ornstein" },
+  "plugins": [
+    {
+      "name": "textscale",
+      "source": "./",
+      "description": "Scale texts or images on any concept with the textscale R package, with a human calibration and audit step built in."
+    }
+  ]
+}
